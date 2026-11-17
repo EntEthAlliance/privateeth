@@ -110,9 +110,10 @@ const logInto = (list) => (e) => {
 async function deploy() {
   S.busy = "deploy"; S.error = null; S.progress.deploy = DEPLOY_STEPS.map((label) => ({ label, state: "waiting" })); render();
   try {
-    const dep = await deployContracts({ pub: S.pub, wallet: S.demo, ART: await loadArt(), rpcUrl: S.admin.rpcUrl, log: logInto(S.progress.deploy) });
-    S.admin.deployment = dep; S.admin.session = null; saveAdmin(S.admin);
-  } catch (e) { S.error = "Deployment stopped: " + (e.shortMessage || e.message) + " You can try again; the demo account keeps its ETH."; }
+    const dep = await deployContracts({ pub: S.pub, wallet: S.demo, ART: await loadArt(), rpcUrl: S.admin.rpcUrl, log: logInto(S.progress.deploy),
+      partial: S.admin.partialDeploy || null, save: (p) => { S.admin.partialDeploy = p; saveAdmin(S.admin); } });
+    S.admin.deployment = dep; S.admin.session = null; S.admin.partialDeploy = null; saveAdmin(S.admin);
+  } catch (e) { S.error = "Deployment stopped: " + (e.shortMessage || e.message) + " Press Deploy again to continue where it stopped; finished steps are not paid for twice."; }
   S.busy = null; await refreshBalances(); render();
 }
 async function newSession() {
@@ -140,7 +141,7 @@ export function installProfiles(admin = loadAdmin()) {
 }
 function startOver() {
   if (!confirm("Forget the deployed contracts and start over? The demo account and its ETH are kept.")) return;
-  S.admin.deployment = null; S.admin.session = null; saveAdmin(S.admin); render();
+  S.admin.deployment = null; S.admin.session = null; S.admin.partialDeploy = null; saveAdmin(S.admin); render();
 }
 
 // ---------- rendering ----------
@@ -197,7 +198,7 @@ function render() {
       ${dep ? `<p>Deployed: shielded pool ${addrLink(SEPOLIA, dep.ShieldedPool)} · token ${addrLink(SEPOLIA, dep.MockERC20)} · block ${dep.startBlock}</p>
           <p class="hint">Deploy once; every new demo session reuses these contracts. <button class="small ghost" id="startover" ${busy ? "disabled" : ""}>Start over with new contracts</button></p>`
         : `<p class="hint">13 contracts, including the three zero-knowledge proof verifiers from the EthSystems shielded pool. About 15 transactions; allow 4 to 6 minutes.</p>
-          <button id="deploy" ${!funded || busy ? "disabled" : ""}>${S.busy === "deploy" ? "Deploying…" : "Deploy the contracts"}</button>`}
+          <button id="deploy" ${!funded || busy ? "disabled" : ""}>${S.busy === "deploy" ? "Deploying…" : a.partialDeploy ? "Continue the deployment" : "Deploy the contracts"}</button>`}
       ${progressHtml(S.progress.deploy)}
     </div></div>
     <div class="${stepClass(!!a.session, !!dep)}"><span class="sn">4</span><div class="sb"><h2>Create the demo session</h2>
