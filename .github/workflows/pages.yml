@@ -1,12 +1,10 @@
-# Builds the static wallet site and publishes it to GitHub Pages.
-# Two publish paths, so the site goes live whichever Pages source the repository uses:
-#   - "GitHub Actions" source: the deploy-pages job
-#   - "Deploy from a branch" source (gh-pages): the gh-pages job
+# Builds the static site and publishes it with GitHub Pages' own deployment, from main only.
+# Actions are pinned to commit SHAs, so a moved tag cannot change what runs here.
 name: Deploy site
 
 on:
   push:
-    branches: [main, demo-site]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -20,19 +18,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build
       - run: touch dist/.nojekyll
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: ./dist
 
-  deploy-pages:
+  deploy:
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -43,20 +43,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
-
-  gh-pages:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: github-pages
-      - run: mkdir dist && tar -xf artifact.tar -C dist
-      - uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

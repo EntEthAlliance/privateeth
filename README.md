@@ -6,7 +6,7 @@ Two banks pay each other on Sepolia. Anyone watching the chain sees money enter 
 
 Everything runs in the browser, with no install and no backend. Zero-knowledge proofs are generated in the page, transactions go to a public Sepolia RPC, and MetaMask is only used once, to fund the demo. Built on the shielded pool in [ethsystems/pocs](https://github.com/ethsystems/pocs) (`pocs/private-payment/shielded-pool`): its contracts, its Noir circuits and real proofs checked by on-chain verifiers.
 
-> Research prototype on testnet. Not audited. Never put real funds behind it.
+> Research prototype on testnet. Not professionally audited. Never put real funds behind it. Use a separate MetaMask account that holds only Sepolia test ETH. See [SECURITY.md](SECURITY.md) for what the site asks your wallet for, what we checked and what we recommend.
 
 ## Run a live demo (browser only)
 

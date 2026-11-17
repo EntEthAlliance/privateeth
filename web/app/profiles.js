@@ -9,13 +9,17 @@ export const saveProfiles = (p) => store.set(STORE, JSON.stringify(p));
 
 const need = (ok, what) => { if (!ok) throw new Error(`invalid ${what}`); };
 const name = (x) => typeof x === "string" && /^[\w .-]{1,32}$/.test(x);
+const isLocalHost = (h) => h === "127.0.0.1" || h === "localhost";
+// https only; plain http only for a node on this computer (local testing).
 function rpc(u) {
   let url; try { url = new URL(u); } catch { need(false, "RPC URL"); }
-  need(url.protocol === "https:" || url.protocol === "http:", "RPC URL");
+  need(url.protocol === "https:" || (url.protocol === "http:" && isLocalHost(url.hostname)), "RPC URL (https only)");
   return url.href;
 }
+// Sepolia, or a local test chain.
+const okChain = (id) => id === 11155111 || id === 31337;
 function cleanDep(d = {}) {
-  need(Number.isSafeInteger(d.chainId) && d.chainId > 0, "chain id");
+  need(Number.isSafeInteger(d.chainId) && okChain(d.chainId), "chain (Sepolia only)");
   need(Number.isSafeInteger(d.startBlock) && d.startBlock >= 0, "start block");
   for (const k of ["ShieldedPool", "AttestationRegistry", "MockERC20", "relayer"]) need(isAddr(d[k]), k);
   need(d.directory && typeof d.directory === "object", "directory");
@@ -53,13 +57,15 @@ export function validateProfile(p) {
 
 export function validateWatch(w) {
   need(w && typeof w === "object", "watch link");
-  need(Number.isSafeInteger(w.chainId) && w.chainId > 0, "chain id");
+  need(Number.isSafeInteger(w.chainId) && okChain(w.chainId), "chain (Sepolia only)");
   need(Number.isSafeInteger(w.startBlock) && w.startBlock >= 0, "start block");
   need(isAddr(w.ShieldedPool) && isAddr(w.MockERC20), "addresses");
   need(w.relayer === undefined || isAddr(w.relayer), "relayer");
   const names = {};
   for (const [a, nm] of Object.entries(w.names || {})) { need(isAddr(a) && name(nm), "names"); names[a.toLowerCase()] = nm; }
-  // Audience links normally carry no RPC URL: the public endpoint for the chain is used.
+  // Audience links use the chain's public endpoint. A link may name an RPC only for a node on
+  // this computer (testing), so a shared link can never point viewers at someone else's RPC.
+  if (w.rpcUrl !== undefined) { let h = ""; try { h = new URL(w.rpcUrl).hostname; } catch {} need(isLocalHost(h), "RPC URL in an audience link"); }
   const rpcUrl = w.rpcUrl !== undefined ? rpc(w.rpcUrl) : PUBLIC_RPC[w.chainId];
   need(!!rpcUrl, "chain (no public RPC known for it)");
   return { chainId: w.chainId, rpcUrl, startBlock: w.startBlock, ShieldedPool: w.ShieldedPool, MockERC20: w.MockERC20, relayer: w.relayer, names };
@@ -87,6 +93,13 @@ export function takeLinkFromHash() {
     }
     const prof = validateProfile(b64urlDecode(m[2]));
     const all = loadProfiles();
+    // Opening a link must not silently replace roles from another demo on this device.
+    const ids = prof.role === "console" ? ["console", ...prof.banks.map((b) => b.id), prof.regulator.id] : [prof.id];
+    const clash = ids.some((id) => all[id] && (all[id].dep?.ShieldedPool !== prof.dep.ShieldedPool || JSON.stringify(all[id].keys || all[id].viewingKeys || all[id].banks) !== JSON.stringify(prof.keys || prof.viewingKeys || prof.banks)));
+    if (clash && !confirm(`This link replaces the "${prof.name}" role already on this device (from another demo session). Replace it?`)) {
+      history.replaceState(null, "", "#");
+      return null;
+    }
     const put = (p) => { all[p.id] = p; store.del("privateeth.state." + p.id); };
     if (prof.role === "console") { prof.banks.forEach(put); put(prof.regulator); }
     put(prof);

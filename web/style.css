@@ -297,3 +297,4 @@ a.way:hover { border-color: var(--green); }
 .vlist li { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start; }
 .vk { font-family: var(--mono); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--green-soft); color: var(--green); font-weight: 700; }
 .vt { font-weight: 600; }
+.qrhidden { width: 160px; height: 160px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; border: 1px dashed var(--orange); border-radius: 6px; padding: 10px; }
