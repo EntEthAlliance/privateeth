@@ -65,7 +65,8 @@ export function validateWatch(w) {
   for (const [a, nm] of Object.entries(w.names || {})) { need(isAddr(a) && name(nm), "names"); names[a.toLowerCase()] = nm; }
   // Audience links use the chain's public endpoint. A link may name an RPC only for a node on
   // this computer (testing), so a shared link can never point viewers at someone else's RPC.
-  if (w.rpcUrl !== undefined) { let h = ""; try { h = new URL(w.rpcUrl).hostname; } catch {} need(isLocalHost(h), "RPC URL in an audience link"); }
+  // (The chain's own public endpoint is accepted too: validated data is stored with it filled in.)
+  if (w.rpcUrl !== undefined && w.rpcUrl !== PUBLIC_RPC[w.chainId]) { let h = ""; try { h = new URL(w.rpcUrl).hostname; } catch {} need(isLocalHost(h), "RPC URL in an audience link"); }
   const rpcUrl = w.rpcUrl !== undefined ? rpc(w.rpcUrl) : PUBLIC_RPC[w.chainId];
   need(!!rpcUrl, "chain (no public RPC known for it)");
   return { chainId: w.chainId, rpcUrl, startBlock: w.startBlock, ShieldedPool: w.ShieldedPool, MockERC20: w.MockERC20, relayer: w.relayer, names };
