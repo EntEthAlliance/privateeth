@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Private Payments Wallet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kode+Mono:wght@400;600;700&display=swap">
+<style>
+:root {
+  --canvas: #EDEAE3; --surface: #F7F5F0; --line: #DAD6CD; --ink: #16181A; --ink-2: #5A645E;
+  --green: #1F5C4A; --green-dark: #10231E; --green-soft: #DCE7E1; --green-light: #C9D6D0;
+  --pink: #EE9BFC; --yellow: #F3CF2B; --coral: #FEABA0;
+  --blue: #3B4A9C; --blue-soft: #E5E9F6; --orange: #A65A18; --orange-soft: #F3E6D7;
+  --sans: "Inter", system-ui, sans-serif; --mono: "Kode Mono", ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.45; }
+.wrap { max-width: 1400px; margin: 0 auto; padding: 28px 40px 60px; display: grid; gap: 26px; }
+.mono { font-family: var(--mono); }
+.lbl { font-family: var(--mono); font-size: 14px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-2); }
+a { color: var(--green); }
+.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+.lockup { display: grid; gap: 8px; font-family: var(--mono); font-size: 16px; letter-spacing: 0.04em; color: var(--ink-2); }
+.lockup b { color: var(--ink); margin-right: 8px; }
+.stripe { display: flex; } .stripe i { width: 40px; height: 4px; display: block; }
+.stripe i:nth-child(1) { background: var(--pink); } .stripe i:nth-child(2) { background: var(--yellow); } .stripe i:nth-child(3) { background: var(--coral); }
+.net { display: flex; gap: 10px; align-items: center; font-family: var(--mono); font-size: 14px; letter-spacing: 0.05em; }
+.chip { border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; color: var(--ink-2); text-decoration: none; }
+.hero { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+.hero h1 { margin: 0; font-size: 64px; letter-spacing: -0.03em; line-height: 1; }
+.hero .addr { font-family: var(--mono); font-size: 16px; color: var(--ink-2); }
+.pill { font-family: var(--mono); font-size: 13px; letter-spacing: 0.06em; padding: 4px 10px; border-radius: 999px; background: var(--green); color: var(--surface); }
+.pill.off { background: transparent; border: 1px solid var(--line); color: var(--ink-2); }
+.bal { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px 26px; display: grid; gap: 6px; border-top: 5px solid var(--orange); }
+.tile.priv { border-top-color: var(--green); }
+.tile .num { font-size: 76px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.tile.priv .num { color: var(--green); }
+.tile .who { font-size: 17px; color: var(--ink-2); }
+.tile .num.flash { animation: flash 1.6s ease-out; border-radius: 10px; }
+@keyframes flash { 0% { background: var(--yellow); } 100% { background: transparent; } }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px 24px; display: grid; gap: 12px; }
+.card h2 { margin: 0; font-size: 24px; letter-spacing: -0.01em; }
+.card p.hint { margin: 0; color: var(--ink-2); font-size: 15px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+input, select { font: inherit; font-size: 20px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); min-width: 0; }
+input[type=number] { width: 150px; }
+input.hash { flex: 1; font-family: var(--mono); font-size: 15px; }
+button { font: inherit; font-weight: 600; font-size: 18px; padding: 11px 20px; border-radius: 10px; border: 1px solid var(--green); background: var(--green); color: var(--surface); cursor: pointer; }
+button.ghost { background: transparent; color: var(--green); }
+button.small { font-size: 14px; padding: 6px 12px; }
+button:disabled { opacity: 0.4; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+.notes { display: flex; gap: 8px; flex-wrap: wrap; }
+.note { font-family: var(--mono); font-size: 15px; padding: 4px 10px; border-radius: 6px; background: var(--green-soft); color: var(--green); display: inline-flex; gap: 8px; align-items: center; }
+.note.spent { background: transparent; color: var(--ink-2); text-decoration: line-through; border: 1px dashed var(--line); }
+.job { border-left: 4px solid var(--green); padding-left: 14px; display: grid; gap: 4px; }
+.job .stage { font-size: 16px; color: var(--ink-2); }
+.job .stage:last-child { color: var(--ink); font-weight: 600; }
+.job.err { border-left-color: var(--orange); }
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--green-light); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.feed { display: grid; gap: 0; }
+.item { display: grid; grid-template-columns: 110px 1fr auto; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: center; font-size: 16px; }
+.item:last-child { border-bottom: 0; }
+.tag { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.tag.receive { color: var(--green); font-weight: 700; }
+.toast { position: fixed; left: 50%; top: 22px; transform: translateX(-50%); background: var(--green-dark); color: var(--canvas); padding: 18px 28px; border-radius: 14px; font-size: 26px; font-weight: 600; display: flex; gap: 16px; align-items: center; z-index: 10; box-shadow: 0 10px 30px rgba(16,35,30,0.25); }
+.toast .lbl { color: var(--pink); }
+.toast[hidden] { display: none; }
+.inspect { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.kv { display: grid; grid-template-columns: 160px minmax(0,1fr); gap: 6px 12px; font-size: 15px; }
+.kv span:nth-child(odd) { color: var(--ink-2); font-family: var(--mono); font-size: 13px; padding-top: 2px; }
+.kv span:nth-child(even) { font-family: var(--mono); overflow-wrap: anywhere; }
+.sealed { background: var(--green-soft); color: var(--green); border-radius: 5px; padding: 1px 6px; }
+.open { background: var(--blue-soft); color: var(--blue); border-radius: 6px; padding: 8px 12px; font-weight: 600; font-size: 18px; }
+.closed { color: var(--ink-2); font-style: italic; }
+.empty { color: var(--ink-2); font-size: 15px; }
+.err { color: var(--orange); }
+@media (max-width: 900px) { .bal, .grid, .inspect { grid-template-columns: 1fr; } .hero h1 { font-size: 44px; } .tile .num { font-size: 52px; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="empty">Connecting to the chain…</div></div>
+<div class="toast" id="toast" hidden><span class="lbl">Incoming</span><span id="toast-text"></span></div>
+<script>
+let S = null, lastToast = 0, prevPriv = null, prevPub = null, inspectResult = null, inspectError = null, inspecting = false;
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const short = (h) => h ? h.slice(0, 8) + "…" + h.slice(-6) : "";
+const n = (v) => Number(v).toLocaleString("en-US");
+const tx = (h) => S.explorer ? `<a href="${S.explorer}/tx/${h}" target="_blank" rel="noopener">${short(h)} ↗</a>` : `<span class="mono">${short(h)}</span>`;
+const ad = (a) => S.explorer ? `<a href="${S.explorer}/address/${a}" target="_blank" rel="noopener">${short(a)} ↗</a>` : `<span class="mono">${short(a)}</span>`;
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || "Request failed");
+  return j;
+}
+
+function header() {
+  return `<div class="top">
+    <div class="lockup"><div><b>EEA</b>ETHEREUM INTELLIGENCE</div><div class="stripe"><i></i><i></i><i></i></div></div>
+    <div class="net"><span class="chip">${S.chainId === 11155111 ? "SEPOLIA" : "LOCAL CHAIN " + S.chainId}</span>
+      ${S.explorer ? `<a class="chip" href="${S.explorer}/address/${S.pool}" target="_blank" rel="noopener">POOL ON ETHERSCAN ↗</a>` : ""}</div>
+  </div>`;
+}
+
+function inspectCard() {
+  const r = inspectResult;
+  let body = `<p class="hint">Paste any transaction hash from Etherscan. Left: what everyone can read. Right: what ${S.mode === "regulator" ? "the viewing keys" : "this bank's key"} can open.</p>`;
+  if (inspectError) body += `<div class="err">${esc(inspectError)}</div>`;
+  if (r) {
+    const evs = r.events.length ? r.events : [{ name: "(no pool event)", fields: [], envelopes: [] }];
+    const left = evs.map((e) => `<div class="kv"><span>from</span><span>${ad(r.from)}${r.fromLabel ? " · " + esc(r.fromLabel) : ""}</span><span>status</span><span>${esc(r.status)}</span><span>event</span><span>${esc(e.name)}</span>
+      ${e.fields.map(([k, v]) => `<span>${esc(k)}</span><span>${esc(v.length > 30 ? short(v) : v)}</span>`).join("")}
+      ${e.envelopes.map((x, i) => `<span>encrypted ${i + 1}</span><span class="sealed">${esc(x.bytes)} (${x.size} bytes)</span>`).join("")}</div>`).join("");
+    const opened = evs.flatMap((e) => e.envelopes);
+    const right = opened.length ? opened.map((x, i) => x.opened
+      ? `<div class="open">Note ${i + 1}: ${n(x.opened.amount)} tUSD${x.opened.memo ? " · " + esc(x.opened.memo) : ""}<div class="tag" style="color:var(--blue)">opened with ${esc(x.opened.by)}'s key</div></div>`
+      : `<div class="closed">Note ${i + 1}: cannot be opened with ${S.mode === "regulator" ? "these keys" : "this key"}</div>`).join("")
+      : `<div class="closed">No encrypted notes in this transaction.</div>`;
+    body += `<div class="inspect"><div><div class="lbl" style="color:var(--orange)">What Etherscan shows</div>${left}</div><div style="display:grid;gap:10px;align-content:start"><div class="lbl" style="color:var(--blue)">What the key opens</div>${right}</div></div>`;
+  }
+  return `<div class="card"><h2>Open a transaction with ${S.mode === "regulator" ? "the viewing keys" : "my key"}</h2>
+    <div class="row"><input class="hash" id="ihash" placeholder="0x… transaction hash" value="${esc(r?.hash || $("#ihash")?.value || "")}"><button id="ibtn" ${inspecting ? "disabled" : ""}>${inspecting ? "Opening…" : "Open"}</button></div>${body}</div>`;
+}
+
+function jobView() {
+  const j = S.job, busy = j && !j.done;
+  return j ? `<div class="job ${j.error ? "err" : ""}"><div class="lbl">${esc(j.label)}</div>
+      ${j.stages.map((s, i) => `<div class="stage">${busy && i === j.stages.length - 1 ? '<span class="spin"></span>' : ""}${esc(s)}</div>`).join("")}
+      ${j.hash ? `<div class="stage">Transaction ${tx(j.hash)}</div>` : ""}${j.error ? `<div class="stage err">Failed: ${esc(j.error)}</div>` : ""}</div>` : `<div class="empty">No action yet.</div>`;
+}
+// While someone is typing, update only the live parts so the field keeps its cursor.
+function liveUpdate() {
+  if (S.mode === "regulator" || !$("#jobbox")) return render();
+  const busy = S.job && !S.job.done;
+  $("#jobbox").innerHTML = jobView();
+  $("#pubnum").textContent = n(S.publicBalance); $("#privnum").textContent = n(S.privateBalance);
+  document.querySelectorAll("#dbtn,#sbtn,#rbtn,[data-w]").forEach((b) => (b.disabled = !!busy));
+}
+function render() {
+  if (S.mode === "regulator") {
+    $("#app").innerHTML = header() + `<div class="hero"><h1>Regulator</h1><span class="addr">Holds viewing keys for ${S.keys.map(esc).join(" and ")} · cannot move funds</span></div>` + inspectCard();
+    bindInspect(); return;
+  }
+  const j = S.job, busy = j && !j.done;
+  const jobHtml = jobView();
+  const unspent = S.notes.filter((x) => !x.spent);
+  const focus = document.activeElement?.id;
+  const keep = (id, d) => document.getElementById(id)?.value ?? d;
+  $("#app").innerHTML = header() + `
+    <div class="hero"><h1>${esc(S.name)}</h1><span class="addr">${ad(S.address)}</span><span class="pill ${S.approved ? "" : "off"}">${S.approved ? "APPROVED FOR THE POOL" : "NOT APPROVED"}</span></div>
+    <div class="bal">
+      <div class="tile"><span class="lbl">Public wallet · tUSD</span><span class="num" id="pubnum">${n(S.publicBalance)}</span><span class="who">Anyone can see this on Etherscan</span></div>
+      <div class="tile priv"><span class="lbl">Private balance · tUSD</span><span class="num" id="privnum">${n(S.privateBalance)}</span><span class="who">Only ${esc(S.name)} can see this</span></div>
+    </div>
+    <div class="grid">
+      <div style="display:grid;gap:20px">
+        <div class="card"><h2>Move into the pool</h2><p class="hint">Public: Etherscan shows ${esc(S.name)} sending tUSD to the pool.</p>
+          <div class="row"><input type="number" id="damt" min="1" value="${keep("damt", S.publicBalance > 0 ? S.publicBalance : 100)}"><button id="dbtn" ${busy ? "disabled" : ""}>Deposit</button></div></div>
+        <div class="card"><h2>Pay privately</h2><p class="hint">Private: no sender, recipient or amount on-chain. A relayer pays the gas.</p>
+          <div class="row"><select id="sto">${S.counterparties.map((c) => `<option>${esc(c)}</option>`).join("")}</select>
+            <input type="number" id="samt" min="1" value="${keep("samt", 700)}"><button id="sbtn" ${busy ? "disabled" : ""}>Send privately</button></div></div>
+        <div class="card"><h2>Withdraw</h2><p class="hint">Public: a note leaves the pool to a brand-new address.</p>
+          <div class="notes">${unspent.length ? unspent.map((x) => `<span class="note">${n(x.amount)}${x.memo && x.memo !== "deposit" ? " · " + esc(x.memo) : ""} <button class="small ghost" data-w="${x.commitment}" ${busy ? "disabled" : ""}>Withdraw</button></span>`).join("") : '<span class="empty">No private notes yet.</span>'}</div>
+          ${S.fresh.map((f) => `<div class="hint">New address ${ad(f.address)} holds <b>${n(f.balance)} tUSD</b></div>`).join("")}
+          ${S.canReplay ? `<div class="row"><button class="ghost" id="rbtn" ${busy ? "disabled" : ""}>Replay last withdrawal (should fail)</button></div>` : ""}</div>
+      </div>
+      <div style="display:grid;gap:20px">
+        <div class="card"><h2>Progress</h2><div id="jobbox">${jobHtml}</div></div>
+        <div class="card"><h2>Activity</h2><div class="feed">${S.activity.length ? S.activity.map((a) => `<div class="item"><span class="tag ${a.type}">${a.type}</span><span>${esc(a.text)}</span><span>${a.hash ? tx(a.hash) : ""} ${a.hash ? `<button class="small ghost" data-i="${a.hash}">Open</button>` : ""}</span></div>`).join("") : '<div class="empty">Nothing yet.</div>'}</div></div>
+        <div class="card"><h2>Private notes</h2><div class="notes">${S.notes.length ? S.notes.map((x) => `<span class="note ${x.spent ? "spent" : ""}">${n(x.amount)}${x.memo && x.memo !== "deposit" ? " · " + esc(x.memo) : ""}</span>`).join("") : '<span class="empty">None yet.</span>'}</div></div>
+      </div>
+    </div>` + inspectCard();
+  if (prevPriv !== null && prevPriv !== S.privateBalance) $("#privnum").classList.add("flash");
+  if (prevPub !== null && prevPub !== S.publicBalance) $("#pubnum").classList.add("flash");
+  prevPriv = S.privateBalance; prevPub = S.publicBalance;
+  if (focus && document.getElementById(focus)) document.getElementById(focus).focus();
+  const act = (fn) => async () => { try { await fn(); await poll(); } catch (e) { alertBox(e.message); } };
+  $("#dbtn").onclick = act(() => api("/api/deposit", { amount: $("#damt").value }));
+  $("#sbtn").onclick = act(() => api("/api/send", { to: $("#sto").value, amount: $("#samt").value }));
+  document.querySelectorAll("[data-w]").forEach((b) => (b.onclick = act(() => api("/api/withdraw", { commitment: b.dataset.w }))));
+  if ($("#rbtn")) $("#rbtn").onclick = act(() => api("/api/replay", {}));
+  document.querySelectorAll("[data-i]").forEach((b) => (b.onclick = () => { $("#ihash").value = b.dataset.i; doInspect(); }));
+  bindInspect();
+  const flash = S.activity.find((a) => a.flash && a.ts > lastToast);
+  if (flash) { lastToast = flash.ts; $("#toast-text").textContent = flash.text; $("#toast").hidden = false; setTimeout(() => ($("#toast").hidden = true), 9000); }
+}
+function alertBox(msg) { S.job = { label: "Error", stages: [], error: msg, done: true }; render(); }
+function bindInspect() { $("#ibtn").onclick = doInspect; $("#ihash").onkeydown = (e) => e.key === "Enter" && doInspect(); }
+async function doInspect() {
+  const h = $("#ihash").value.trim(); if (!h) return;
+  inspecting = true; inspectError = null; render();
+  try { inspectResult = await api("/api/inspect", { hash: h }); } catch (e) { inspectError = e.message; inspectResult = null; }
+  inspecting = false; render();
+}
+let editing = false;
+document.addEventListener("focusin", (e) => (editing = e.target.matches("input,select")));
+document.addEventListener("focusout", () => (editing = false));
+async function poll() {
+  try { S = await api("/api/state"); if (editing && $("#jobbox")) liveUpdate(); else render(); }
+  catch (e) { $("#app").innerHTML = `<div class="err">Lost connection to the wallet server: ${esc(e.message)}</div>`; }
+}
+poll(); setInterval(poll, 2000);
+</script>
+</body>
+</html>

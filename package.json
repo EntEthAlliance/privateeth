@@ -1,0 +1,36 @@
+{
+  "name": "privateeth",
+  "version": "1.0.0",
+  "description": "Private payments between two banks on Ethereum Sepolia: browser wallet with zero-knowledge proofs, built on the EthSystems shielded pool PoC",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "selftest": "node scripts/selftest.mjs",
+    "rebuild-verifiers": "node scripts/gen-verifiers.mjs && cd contracts && forge build && cd .. && node scripts/export-artifacts.mjs",
+    "links": "node scripts/links.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "local-a": "node local/server.mjs a",
+    "local-b": "node local/server.mjs b",
+    "local-regulator": "node local/server.mjs regulator"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@aztec/bb.js": "5.0.0-nightly.20260324",
+    "@noble/ciphers": "2.4.0",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
+    "@noir-lang/noir_js": "1.0.0-beta.21",
+    "@zk-kit/lean-imt": "2.2.5",
+    "coi-serviceworker": "^0.1.7",
+    "poseidon-lite": "0.3.0",
+    "viem": "2.58.0"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}
