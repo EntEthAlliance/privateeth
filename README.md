@@ -74,6 +74,9 @@ Compare the deposit (the control) with the private payment:
 - **Two banks is a tiny crowd.** The audience saw Bank A deposit 1,000, so "the 700 came from Bank A" is an easy guess. Privacy grows with the number of participants.
 - **Funding links.** Setup funds the relayer and both banks from the same deployer, which Etherscan shows. For the cleanest version, fund the relayer from a faucet.
 - **Keys in links.** The links carry the banks' testnet keys in the URL fragment (`#…`), which browsers never send to a server. The page stores them in that browser; the landing page has a button to forget them.
+- **Keys stay on the presenters' machines, mostly.** The setup links stay in browser history even after "Forget the keys on this device"; use a private window per role, or clear the history after the demo. The site shares its origin (`hub.entethalliance.org`) with the other EEA project pages, which in principle can read the same browser storage. Acceptable for disposable testnet keys, not for anything more.
+- **One action at a time.** Both banks share one relayer account. Run private actions on the two screens one after the other, not simultaneously.
+- **Open the https:// links.** `entethalliance.github.io/privateeth` redirects to plain-http `hub.entethalliance.org` while the org's Pages setting "Enforce HTTPS" is off, and on plain http the page cannot load its multi-threaded proof engine or see keys stored under https.
 - **What is new here.** The repo's own test leaves the encrypted notes empty, so this demo adds a simple note encryption (secp256k1 ECDH + ChaCha20-Poly1305) instead of the repo's `sealring` envelope. The memo "from Bank A" sits inside the encrypted note.
 
 ## Run it without the website

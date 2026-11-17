@@ -8,7 +8,7 @@ import { decodeEventLog, hexToBytes, bytesToHex } from "viem";
 import { loadEnv, ART, clients } from "../lib/chain.js";
 import { deposit, sendPrivate, withdraw, replay, publicBalance } from "../lib/actions.js";
 import { openBank } from "../lib/node.js";
-import { openNote, unpackEnvelopes } from "../lib/core.js";
+import { openNote, unpackEnvelopes, commitmentOf } from "../lib/core.js";
 
 loadEnv();
 const who = (process.argv[2] || "a").toLowerCase();
@@ -82,9 +82,11 @@ async function inspect(hash) {
     let ev; try { ev = decodeEventLog({ abi: ART.ShieldedPool.abi, data: log.data, topics: log.topics }); } catch { continue; }
     const a = ev.args, payload = a.encryptedNote || a.encryptedNotes;
     const pubFields = Object.entries(a).filter(([k]) => !/encrypted/i.test(k)).map(([k, v]) => [k, String(v)]);
+    // A note only counts if it re-hashes to a commitment this event actually put on-chain.
+    const onchain = [a.commitment, a.commitment1, a.commitment2].filter(Boolean).map((c) => BigInt(c));
     const envelopes = payload ? unpackEnvelopes(hexToBytes(payload)).map((env) => {
       let opened = null;
-      for (const k of myKeys) { const n = openNote(env, k.viewingPriv); if (n) { opened = { by: k.name, amount: n.amount, memo: n.memo, owner: n.owner }; break; } }
+      for (const k of myKeys) { const n = openNote(env, k.viewingPriv); if (n && onchain.includes(commitmentOf(n))) { opened = { by: k.name, amount: n.amount, memo: n.memo, owner: n.owner }; break; } }
       return { bytes: bytesToHex(env).slice(0, 26) + "…", size: env.length, opened };
     }) : [];
     out.events.push({ name: ev.eventName, fields: pubFields, envelopes });
@@ -125,7 +127,12 @@ const routes = {
 };
 
 const page = readFileSync(new URL("./wallet.html", import.meta.url), "utf8");
+// Holds live keys: reachable from this machine only, and only under its own host name
+// (blocks other devices on the venue network and DNS-rebinding pages).
+const allowedHosts = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`]);
 http.createServer(async (req, res) => {
+  if (!allowedHosts.has(req.headers.host || "")) { res.writeHead(403); return res.end("forbidden"); }
+  if (req.method === "POST" && !(req.headers["content-type"] || "").startsWith("application/json")) { res.writeHead(415); return res.end("json only"); }
   const key = `${req.method} ${req.url.split("?")[0]}`;
   if (key === "GET /" || key === "GET /index.html") { res.writeHead(200, { "content-type": "text/html" }); return res.end(page); }
   const h = routes[key];
@@ -140,4 +147,4 @@ http.createServer(async (req, res) => {
     res.writeHead(400, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: e.shortMessage || e.message }));
   }
-}).listen(PORT, () => console.log(`${myName} → http://localhost:${PORT}`));
+}).listen(PORT, "127.0.0.1", () => console.log(`${myName} → http://localhost:${PORT}`));
