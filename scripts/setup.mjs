@@ -59,4 +59,4 @@ const directory = Object.fromEntries([bankA, bankB].map((b) => [b.name, { addres
 const deployment = { chainId: chain.id, rpcUrl: RPC, explorer: explorerFor(chain.id), ...dep, relayer: addr(relayer), directory };
 writeFileSync("deployment.json", JSON.stringify(deployment, null, 2));
 console.log(`\nDone. Wrote deployment.json\n  Bank A ${addr(bankA)}\n  Bank B ${addr(bankB)}\n  Relayer ${addr(relayer)}\n  Pool   ${dep.ShieldedPool}`);
-printLinks(process.env.SITE_URL || "https://entethalliance.github.io/privateeth/");
+printLinks(process.env.SITE_URL || "https://hub.entethalliance.org/privateeth/");

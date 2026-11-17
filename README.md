@@ -1,6 +1,6 @@
 # PrivateEth: private payments between banks on Ethereum
 
-**Live site:** https://entethalliance.github.io/privateeth/
+**Live site:** https://hub.entethalliance.org/privateeth/
 
 Two banks pay each other on Sepolia. Anyone watching the chain sees money enter and leave a shielded pool, but not who paid whom or how much. A regulator holding viewing keys can still read every payment.
 

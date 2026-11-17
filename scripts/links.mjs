@@ -29,5 +29,5 @@ export function printLinks(site) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   loadEnv();
-  printLinks(process.env.SITE_URL || "https://entethalliance.github.io/privateeth/");
+  printLinks(process.env.SITE_URL || "https://hub.entethalliance.org/privateeth/");
 }
