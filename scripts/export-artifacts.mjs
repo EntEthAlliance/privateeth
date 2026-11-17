@@ -1,5 +1,5 @@
 // Copies the compiled contracts the demo needs out of Foundry's out/ folder into one
-// artifacts/contracts.json, so the demo machine only needs Node (no Foundry).
+// web/public/contracts.json, which the setup page and the Node scripts both load.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
 const OUT = "contracts/out";
@@ -24,8 +24,9 @@ for (const [key, file] of Object.entries(pick)) {
   all[key] = { abi: j.abi, bytecode: j.bytecode.object, linkReferences: j.bytecode.linkReferences };
 }
 mkdirSync("artifacts", { recursive: true });
-writeFileSync("artifacts/contracts.json", JSON.stringify(all));
+mkdirSync("web/public", { recursive: true });
+writeFileSync("web/public/contracts.json", JSON.stringify(all));
 // The browser only needs the ABIs of the contracts it talks to.
 const abis = Object.fromEntries(["ShieldedPool", "AttestationRegistry", "MockERC20"].map((k) => [k, all[k].abi]));
 writeFileSync("artifacts/abis.json", JSON.stringify(abis));
-console.log("artifacts/contracts.json:", Object.keys(all).length, "contracts");
+console.log("web/public/contracts.json:", Object.keys(all).length, "contracts");
