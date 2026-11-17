@@ -1,6 +1,7 @@
 // Role profiles (bank, regulator, console) and the public watch description.
 // Setup links are untrusted input: only the exact shape the setup produces is accepted.
 import { store, isAddr, key32, b64urlDecode, b64urlEncode, siteBase } from "./util.js";
+import { PUBLIC_RPC, publicRpcFor } from "../../lib/deploy.js";
 
 const STORE = "privateeth.profiles.v1";
 export const loadProfiles = () => { try { return JSON.parse(store.get(STORE)) || {}; } catch { return {}; } };
@@ -23,8 +24,9 @@ function cleanDep(d = {}) {
     need(name(k) && isAddr(v.address) && key32(v.ownerPubkey) && /^0x0[23][0-9a-fA-F]{64}$/.test(v.viewingPub), "directory entry");
     directory[k] = { address: v.address, ownerPubkey: v.ownerPubkey, viewingPub: v.viewingPub };
   }
-  return { chainId: d.chainId, rpcUrl: rpc(d.rpcUrl), startBlock: d.startBlock, ShieldedPool: d.ShieldedPool, AttestationRegistry: d.AttestationRegistry,
-    MockERC20: d.MockERC20, relayer: d.relayer, directory };
+  need(d.sessionBlock === undefined || (Number.isSafeInteger(d.sessionBlock) && d.sessionBlock >= d.startBlock), "session block");
+  return { chainId: d.chainId, rpcUrl: rpc(d.rpcUrl), startBlock: d.startBlock, sessionBlock: d.sessionBlock ?? d.startBlock, ShieldedPool: d.ShieldedPool,
+    AttestationRegistry: d.AttestationRegistry, MockERC20: d.MockERC20, relayer: d.relayer, directory };
 }
 export function validateProfile(p) {
   need(p && typeof p === "object", "profile");
@@ -57,7 +59,18 @@ export function validateWatch(w) {
   need(w.relayer === undefined || isAddr(w.relayer), "relayer");
   const names = {};
   for (const [a, nm] of Object.entries(w.names || {})) { need(isAddr(a) && name(nm), "names"); names[a.toLowerCase()] = nm; }
-  return { chainId: w.chainId, rpcUrl: rpc(w.rpcUrl), startBlock: w.startBlock, ShieldedPool: w.ShieldedPool, MockERC20: w.MockERC20, relayer: w.relayer, names };
+  // Audience links normally carry no RPC URL: the public endpoint for the chain is used.
+  const rpcUrl = w.rpcUrl !== undefined ? rpc(w.rpcUrl) : PUBLIC_RPC[w.chainId];
+  need(!!rpcUrl, "chain (no public RPC known for it)");
+  return { chainId: w.chainId, rpcUrl, startBlock: w.startBlock, ShieldedPool: w.ShieldedPool, MockERC20: w.MockERC20, relayer: w.relayer, names };
+}
+// Audience link for a console/bank profile's own session, built from its deployment.
+export function watchFromDep(dep) {
+  const w = { chainId: dep.chainId, startBlock: dep.sessionBlock ?? dep.startBlock, ShieldedPool: dep.ShieldedPool, MockERC20: dep.MockERC20, relayer: dep.relayer,
+    names: Object.fromEntries(Object.entries(dep.directory).map(([nm, d]) => [d.address, nm])) };
+  const rpc = publicRpcFor(dep.chainId, dep.rpcUrl);
+  if (rpc !== PUBLIC_RPC[dep.chainId]) w.rpcUrl = rpc;
+  return w;
 }
 
 // Takes #setup=… or #watch=… from the address bar, stores what it carries, and replaces the
@@ -78,6 +91,7 @@ export function takeLinkFromHash() {
     if (prof.role === "console") { prof.banks.forEach(put); put(prof.regulator); }
     put(prof);
     saveProfiles(all);
+    store.set("privateeth.watch.v1", JSON.stringify(watchFromDep(prof.dep)));
     history.replaceState(null, "", "#" + prof.id);
     return null;
   } catch (e) {

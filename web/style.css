@@ -268,4 +268,20 @@ a.way:hover { border-color: var(--green); }
   .cloud { min-height: 44px; padding: 6px; } .chain { padding: 10px 12px; } .ccard { padding: 8px 10px; gap: 3px; } .ct { font-size: 15px; } .crows { font-size: 13px; }
   .stage { gap: 10px; } .steps-bar button { padding: 6px 8px; font-size: 13px; } button.go { font-size: 17px; padding: 9px 16px; } .status { font-size: 15px; }
 }
+/* A 720p projector with browser chrome leaves about 620-680px: hide the subtitle, tighten more. */
+@media (max-height: 700px) and (min-width: 901px) {
+  .console-head .lead { display: none; } .ctitle { font-size: 28px; } .wrap { gap: 10px; padding-top: 10px; }
+  .bals .b { padding: 5px 10px; } .bals .v { font-size: 22px; } .node-name { font-size: 19px; } .ccard .crows > span:nth-child(n + 9) { display: none; }
+  .ccard .creveal { font-size: 13px; padding: 3px 6px; }
+}
 @media (prefers-reduced-motion: reduce) { .ccard.arrive, .nchip, .node.pulse, .node.shake, .live i, .live-chip i { animation: none; } }
+
+/* ---------- small additions ---------- */
+.ok-note { color: var(--green); font-weight: 600; }
+.keybox { background: var(--surface); border: 1px dashed var(--orange); border-radius: 8px; padding: 8px 10px; overflow-wrap: anywhere; font-size: 14px; }
+.chip-btn { font-family: var(--mono); font-size: 14px; letter-spacing: 0.05em; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--green); background: var(--green); color: var(--surface); font-weight: 600; }
+.overlay { position: fixed; inset: 0; z-index: 20; background: rgba(16, 35, 30, 0.82); display: grid; place-items: center; padding: 16px; }
+.overlay-box { background: #fff; border-radius: 18px; padding: 24px; display: grid; gap: 12px; justify-items: center; text-align: center; max-width: 92vw; }
+.overlay-box h2 { margin: 0; font-size: 28px; }
+.overlay-box canvas { max-width: 80vw; height: auto; }
+.audience canvas { width: 180px; height: 180px; }
