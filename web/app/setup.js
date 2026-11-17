@@ -13,6 +13,8 @@ const ADMIN = "privateeth.admin.v1";
 export const DEFAULT_RPC = PUBLIC_RPC[11155111];
 const SEPOLIA = 11155111;
 const onSetup = () => location.hash === "#setup";
+const ACK = "privateeth.ack.v1";
+const acknowledged = () => store.get(ACK) === "1";
 
 export function loadAdmin() {
   let a = null; try { a = JSON.parse(store.get(ADMIN)); } catch {}
@@ -81,6 +83,7 @@ async function exclusive(name, fn) {
 
 // ---------- MetaMask ----------
 async function connect() {
+  if (!acknowledged()) return;
   try {
     const acc = await window.ethereum.request({ method: "eth_requestAccounts" });
     S.mm.account = acc[0] || null;
@@ -102,7 +105,11 @@ async function switchChain() {
 const fund = () => exclusive("fund", async () => {
   let value; try { value = parseEther($("#fundamt").value.trim()); } catch { S.error = "Enter an amount of ETH, like 0.05."; return; }
   if (value <= 0n) { S.error = "Enter an amount above zero."; return; }
+  if (!acknowledged()) { S.error = "Read and accept the notice at the top of the page first."; return; }
   try {
+    // Hard stop: never send unless MetaMask is on Sepolia right now (viem checks again before sending).
+    const chainNow = Number(await window.ethereum.request({ method: "eth_chainId" }));
+    if (chainNow !== SEPOLIA) throw new Error(`MetaMask is on chain ${chainNow}, not Sepolia (${SEPOLIA}). Nothing was sent.`);
     const mm = createWalletClient({ chain: sepolia, transport: custom(window.ethereum) });
     S.fundHash = await mm.sendTransaction({ account: S.mm.account, to: demoAddr(), value });
     render();
@@ -237,8 +244,19 @@ function render() {
     <p class="lead">Everything happens in this browser. MetaMask sends test ETH once to a demo account kept in this browser; that account deploys the contracts and prepares two banks and a regulator.</p>
     ${!storageWorks(a) ? `<div class="err">This browser is not keeping data for this site (a private window, or blocked storage). Anything sent to the demo account would be lost when the page closes. Use a normal window.</div>` : ""}
     ${S.error ? `<div class="err">${esc(S.error)}</div>` : ""}${S.notice ? `<div class="ok-note">${esc(S.notice)}</div>` : ""}${S.rpcError ? `<div class="err">Sepolia connection problem: ${esc(S.rpcError)}</div>` : ""}
-    <div class="${stepClass(mmOk(), true)}"><span class="sn">1</span><div class="sb"><h2>Connect MetaMask</h2>
+    <div class="notice ${acknowledged() ? "accepted" : ""}"><h2>Before you connect a wallet</h2>
+      <ul>
+        <li><b>Sepolia testnet only.</b> The ETH and tUSD used here have no value. This is a research prototype and has not been audited.</li>
+        <li><b>Use a separate MetaMask account that holds only Sepolia test ETH</b>, ideally in a separate browser profile. Never use an account that holds real assets.</li>
+        <li><b>This page asks MetaMask for one thing only:</b> a plain ETH transfer on Sepolia, of the amount you type, to the demo account shown in step 2. It never asks for signatures, token approvals or anything on Ethereum mainnet. <b>If MetaMask shows anything else, reject it.</b></li>
+        <li><b>Check the address bar:</b> <span class="mono">https://hub.entethalliance.org/privateeth/</span>. A copy of this page elsewhere is not ours.</li>
+        <li><b>Keys made here stay in this browser</b> and in the role links and QR codes. Anyone with them can use this demo's test funds, nothing else. Share role links only with presenters, and clear this site's data after the demo.</li>
+      </ul>
+      <label class="ack"><input type="checkbox" id="ack" ${acknowledged() ? "checked" : ""}> I understand: testnet only, a separate account with no real funds.</label>
+    </div>
+    <div class="${stepClass(mmOk(), acknowledged())}"><span class="sn">1</span><div class="sb"><h2>Connect MetaMask</h2>
       ${!hasMM ? `<p class="hint">MetaMask is not installed in this browser. Install it from <a href="https://metamask.io" target="_blank" rel="noopener">metamask.io</a>, add some Sepolia test ETH from a faucet, then reload this page.</p>`
+        : !acknowledged() ? `<p class="hint">Accept the notice above to continue.</p><button id="connect" disabled>Connect MetaMask</button>`
         : !S.mm.account ? `<button id="connect">Connect MetaMask</button>`
         : `<p>Connected: ${addrLink(SEPOLIA, S.mm.account)}${S.mm.chainId === SEPOLIA ? " · Sepolia" : ""}</p>${S.mm.chainId !== SEPOLIA ? `<button id="switch">Switch MetaMask to Sepolia</button>` : ""}`}
     </div></div>
@@ -280,6 +298,7 @@ function render() {
   const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = f; };
   on("connect", connect); on("switch", switchChain); on("fund", fund); on("deploy", deploy); on("session", newSession); on("sweep", sweep); on("startover", startOver); on("saverpc", saveRpc);
   on("showkey", () => { S.showKey = !S.showKey; render(); });
+  $("#ack").onchange = (e) => { if (e.target.checked) store.set(ACK, "1"); else store.del(ACK); render(); };
   $("#fundamt").oninput = () => { S.fundEdited = true; };
   $("#adv").ontoggle = (e) => { S.advancedOpen = e.target.open; };
   $$("[data-copy]").forEach((b) => (b.onclick = () => copy(b.dataset.copy, b)));

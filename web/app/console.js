@@ -11,6 +11,7 @@ import { ChainFeed } from "./feed.js";
 import { inspectTx, inspectHtml } from "./inspect.js";
 import { loadCircuits } from "./roles.js";
 import { watchLinkFor, watchFromDep } from "./profiles.js";
+import { verifyHtml } from "./verify.js";
 
 // One proof engine for the page, whatever the session; it retries after a failed load.
 const prover = sharedProver(loadCircuits);
@@ -166,6 +167,7 @@ function shell() {
         <p class="hint">Scan to watch the public chain live on your phone. No keys, nothing private.</p>
         <div class="row"><a class="small" href="#watch" target="_blank" rel="noopener">Open ↗</a><button class="small ghost" id="wcopy">Copy link</button></div></div>
     </div>
+    <div id="verify"></div>
     <div class="overlay" id="qrover" hidden><div class="overlay-box"><h2>Watch the public chain</h2><canvas id="bigqr" aria-label="Audience QR code"></canvas>
       <p class="hint">Scan with your phone camera. It shows only what anyone can read on Sepolia.</p><button id="qrclose">Close</button></div></div>` + footer();
 }
@@ -208,7 +210,13 @@ function paintInspect() {
     : i.error ? `<div class="err">${esc(i.error)}</div>`
     : inspectHtml(i.result, { chainId: C.chainId, keysLabel: "the regulator's viewing keys", showOpened: C.stage.reveal });
 }
-const paintAll = () => { paintTop(); paintStage(); paintInspect(); };
+let lastVerify = "";
+function paintVerify() {
+  const box = $("#verify"); if (!box || !C) return;
+  const html = verifyHtml({ chainId: C.chainId, feed: C.feed, bankB: C.B.address, token: C.dep.MockERC20, pool: C.dep.ShieldedPool });
+  if (html !== lastVerify || !box.innerHTML) { box.innerHTML = html; lastVerify = html; }
+}
+const paintAll = () => { paintTop(); paintStage(); paintInspect(); paintVerify(); };
 
 export function showConsole(prof) {
   // A different session than the one in memory: start from a clean page.
@@ -239,7 +247,7 @@ export function showConsole(prof) {
       if (C !== me) return; // a newer session replaced this one
       try { await refresh(me); me.syncError = null; } catch (e) { me.syncError = e.shortMessage || e.message; }
       finally {
-        try { if (C === me && here()) { paintTop(); paintStage(); } } catch (e) { console.warn(e); }
+        try { if (C === me && here()) { paintTop(); paintStage(); paintVerify(); } } catch (e) { console.warn(e); }
         setTimeout(tick, 3000);
       }
     };
