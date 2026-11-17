@@ -285,3 +285,16 @@ a.way:hover { border-color: var(--green); }
 .overlay-box h2 { margin: 0; font-size: 28px; }
 .overlay-box canvas { max-width: 80vw; height: auto; }
 .audience canvas { width: 180px; height: 180px; }
+
+/* ---------- safety notice and Etherscan check ---------- */
+.notice { background: var(--orange-soft); border: 1.5px solid var(--orange); border-radius: 16px; padding: 18px 22px; display: grid; gap: 10px; }
+.notice.accepted { background: var(--surface); border-color: var(--line); }
+.notice h2 { margin: 0; font-size: 22px; }
+.notice ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 16px; }
+.ack { display: flex; gap: 10px; align-items: center; font-weight: 600; cursor: pointer; }
+.ack input { width: 20px; height: 20px; accent-color: var(--green); }
+.vlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.vlist li { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start; }
+.vk { font-family: var(--mono); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--green-soft); color: var(--green); font-weight: 700; }
+.vt { font-weight: 600; }
+.qrhidden { width: 160px; height: 160px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; border: 1px dashed var(--orange); border-radius: 6px; padding: 10px; }

@@ -1,7 +1,6 @@
 // Setup page: MetaMask funds one in-browser demo account, which then deploys the contracts,
 // creates a demo session and hands out links and QR codes. One MetaMask confirmation in total.
-import { createWalletClient, custom, parseEther } from "viem";
-import { sepolia } from "viem/chains";
+import { parseEther } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import QRCode from "qrcode";
 import { makeClients } from "../../lib/net.js";
@@ -13,6 +12,8 @@ const ADMIN = "privateeth.admin.v1";
 export const DEFAULT_RPC = PUBLIC_RPC[11155111];
 const SEPOLIA = 11155111;
 const onSetup = () => location.hash === "#setup";
+const ACK = "privateeth.ack.v1";
+const acknowledged = () => store.get(ACK) === "1";
 
 export function loadAdmin() {
   let a = null; try { a = JSON.parse(store.get(ADMIN)); } catch {}
@@ -22,6 +23,12 @@ export function loadAdmin() {
     store.set(ADMIN, JSON.stringify(a));
   }
   a.pastSessions ||= [];
+  // Stored data is untrusted too (another page on this origin could have written it):
+  // drop a deployment or RPC that does not have the expected shape. Keys are never dropped.
+  const addr = (x) => typeof x === "string" && /^0x[0-9a-fA-F]{40}$/.test(x);
+  const d = a.deployment;
+  if (d && !(Number.isSafeInteger(d.startBlock) && Number.isSafeInteger(d.chainId) && ["ShieldedPool", "AttestationRegistry", "MockERC20"].every((k) => addr(d[k])))) a.deployment = null;
+  try { const u = new URL(a.rpcUrl); if (!(u.protocol === "https:" || ["127.0.0.1", "localhost"].includes(u.hostname))) throw 0; } catch { a.rpcUrl = DEFAULT_RPC; }
   return a;
 }
 const saveAdmin = (a) => store.set(ADMIN, JSON.stringify(a));
@@ -35,7 +42,7 @@ const loadArt = async () => (ART ||= await (await fetch(new URL("./contracts.jso
 function init() {
   const admin = loadAdmin();
   S = { admin, mm: { account: null, chainId: null }, demoBal: null, fees: null, busy: null, error: null, notice: null,
-    progress: { deploy: [], session: [] }, fundHash: null, sweepHashes: [], advancedOpen: false, showKey: false, fundEdited: false };
+    progress: { deploy: [], session: [] }, fundHash: null, sweepHashes: [], advancedOpen: false, showKey: false, fundEdited: false, revealed: {} };
   connectClients();
   if (window.ethereum?.on && !window.ethereum.__privateethBound) {
     window.ethereum.__privateethBound = true;
@@ -81,6 +88,7 @@ async function exclusive(name, fn) {
 
 // ---------- MetaMask ----------
 async function connect() {
+  if (!acknowledged()) return;
   try {
     const acc = await window.ethereum.request({ method: "eth_requestAccounts" });
     S.mm.account = acc[0] || null;
@@ -93,23 +101,41 @@ async function switchChain() {
     await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0xaa36a7" }] });
   } catch (e) {
     if (e.code === 4902) {
-      await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{ chainId: "0xaa36a7", chainName: "Sepolia", nativeCurrency: { name: "Sepolia ETH", symbol: "ETH", decimals: 18 }, rpcUrls: [DEFAULT_RPC], blockExplorerUrls: ["https://sepolia.etherscan.io"] }] });
+      try { await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{ chainId: "0xaa36a7", chainName: "Sepolia", nativeCurrency: { name: "Sepolia ETH", symbol: "ETH", decimals: 18 }, rpcUrls: [DEFAULT_RPC], blockExplorerUrls: ["https://sepolia.etherscan.io"] }] }); }
+      catch (e2) { S.error = "MetaMask did not add Sepolia: " + (e2.message || e2); }
     } else S.error = "MetaMask did not switch network: " + (e.message || e);
   }
-  S.mm.chainId = Number(await window.ethereum.request({ method: "eth_chainId" }));
+  try { S.mm.chainId = Number(await window.ethereum.request({ method: "eth_chainId" })); } catch {}
   render();
 }
 const fund = () => exclusive("fund", async () => {
   let value; try { value = parseEther($("#fundamt").value.trim()); } catch { S.error = "Enter an amount of ETH, like 0.05."; return; }
   if (value <= 0n) { S.error = "Enter an amount above zero."; return; }
+  if (!acknowledged()) { S.error = "Read and accept the notice at the top of the page first."; return; }
   try {
-    const mm = createWalletClient({ chain: sepolia, transport: custom(window.ethereum) });
-    S.fundHash = await mm.sendTransaction({ account: S.mm.account, to: demoAddr(), value });
+    // Hard stop: never send unless MetaMask is on Sepolia right now (viem checks again before sending).
+    const chainNow = Number(await window.ethereum.request({ method: "eth_chainId" }));
+    if (chainNow !== SEPOLIA) throw new Error(`MetaMask is on chain ${chainNow}, not Sepolia (${SEPOLIA}). Nothing was sent.`);
+    // The request itself names Sepolia (chainId), so MetaMask rejects it on any other network,
+    // even if something switches MetaMask between the check above and the confirmation.
+    S.fundHash = await window.ethereum.request({ method: "eth_sendTransaction",
+      params: [{ from: S.mm.account, to: demoAddr(), value: "0x" + value.toString(16), chainId: "0xaa36a7" }] });
     render();
     const r = await S.pub.waitForTransactionReceipt({ hash: S.fundHash, timeout: 600_000 });
     if (r.status !== "success") throw new Error("the transfer failed");
-  } catch (e) { S.error = "Funding did not go through: " + (e.shortMessage || e.message); }
+    // Done with MetaMask: drop this site's connection so no page on this domain can use it.
+    await disconnectMetaMask(true);
+  } catch (e) {
+    S.error = "Funding did not go through: " + (e.shortMessage || e.message) + (S.fundHash ? " Check the transfer in MetaMask's activity: it must be on Sepolia." : "");
+  }
 });
+// Revokes this site's MetaMask permission (MetaMask supports wallet_revokePermissions).
+async function disconnectMetaMask(quiet) {
+  try { await window.ethereum.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] }); } catch {}
+  S.mm.account = null;
+  if (!quiet) S.notice = "MetaMask is disconnected from this site.";
+  else S.notice = "Funded. MetaMask is now disconnected from this site; connect again only to return the ETH at the end.";
+}
 
 // Returns ETH from every account this browser created (old and current sessions, then the
 // demo account itself) to the connected MetaMask account.
@@ -133,7 +159,10 @@ const sweep = () => exclusive("sweep", async () => {
     if (r.status !== "success") throw new Error(`returning ETH from ${acct.name} failed`);
   }
   if (S.admin.session) { S.admin.pastSessions.push(S.admin.session); S.admin.session = null; saveAdmin(S.admin); }
-  S.notice = S.sweepHashes.length ? "ETH returned to MetaMask." : "Nothing left to return.";
+  // Every account created here is now empty: forget the old session keys.
+  S.admin.pastSessions = []; saveAdmin(S.admin);
+  await disconnectMetaMask(true);
+  S.notice = (S.sweepHashes.length ? "ETH returned to MetaMask." : "Nothing left to return.") + " MetaMask is now disconnected from this site.";
 }).catch((e) => { S.error = "Could not return all the ETH: " + (e.shortMessage || e.message); S.busy = null; render(); });
 
 // ---------- deploy & session ----------
@@ -218,7 +247,8 @@ function linksHtml() {
     <div class="row"><a class="btn" href="#console">Open the console on this screen</a><a class="btn ghost" href="#watch" target="_blank" rel="noopener">Open the audience view</a></div>
     <p class="hint">Or open a role on another device with its QR code or link. Links marked “contains keys” carry this session's testnet keys: share them only with presenters.</p>
     <div class="qrgrid">${items.map((x) => `<div class="qr ${x.secret ? "secret" : "public"}">
-      <canvas data-qr="${esc(x.url)}" width="160" height="160" aria-label="QR code for ${esc(x.title)}"></canvas>
+      ${!x.secret || S.revealed[x.id] ? `<canvas data-qr="${esc(x.url)}" width="160" height="160" aria-label="QR code for ${esc(x.title)}"></canvas>`
+        : `<div class="qrhidden"><button class="small ghost" data-reveal="${esc(x.id)}">Reveal</button><span class="hint">Contains keys. Keep it off shared or projected screens.</span></div>`}
       <div><h3>${esc(x.title)}</h3><p class="hint">${esc(x.text)}</p><span class="tag ${x.secret ? "warn" : "ok"}">${x.secret ? "contains keys" : "public"}</span>
       <div class="row"><button class="small ghost" data-copy="${esc(x.url)}">Copy link</button><a class="small" href="${esc(x.url)}" target="_blank" rel="noopener">Open ↗</a></div></div>
     </div>`).join("")}</div></div>`;
@@ -237,10 +267,21 @@ function render() {
     <p class="lead">Everything happens in this browser. MetaMask sends test ETH once to a demo account kept in this browser; that account deploys the contracts and prepares two banks and a regulator.</p>
     ${!storageWorks(a) ? `<div class="err">This browser is not keeping data for this site (a private window, or blocked storage). Anything sent to the demo account would be lost when the page closes. Use a normal window.</div>` : ""}
     ${S.error ? `<div class="err">${esc(S.error)}</div>` : ""}${S.notice ? `<div class="ok-note">${esc(S.notice)}</div>` : ""}${S.rpcError ? `<div class="err">Sepolia connection problem: ${esc(S.rpcError)}</div>` : ""}
-    <div class="${stepClass(mmOk(), true)}"><span class="sn">1</span><div class="sb"><h2>Connect MetaMask</h2>
+    <div class="notice ${acknowledged() ? "accepted" : ""}"><h2>Before you connect a wallet</h2>
+      <ul>
+        <li><b>Sepolia testnet only.</b> The ETH and tUSD used here have no value. This is a research prototype and has not been audited.</li>
+        <li><b>Use a separate MetaMask account that holds only Sepolia test ETH</b>, ideally in a separate browser profile. Never use an account that holds real assets.</li>
+        <li><b>This page asks MetaMask for one thing only:</b> a plain ETH transfer on Sepolia, of the amount you type, to the demo account shown in step 2. It never asks for signatures, token approvals or anything on Ethereum mainnet. <b>If MetaMask shows anything else, reject it.</b></li>
+        <li><b>Check the address bar:</b> <span class="mono">https://hub.entethalliance.org/privateeth/</span>. A copy of this page elsewhere is not ours.</li>
+        <li><b>Keys made here stay in this browser</b> and in the role links and QR codes. Anyone with them can use this demo's test funds, nothing else. Share role links only with presenters, and clear this site's data after the demo.</li>
+      </ul>
+      <label class="ack"><input type="checkbox" id="ack" ${acknowledged() ? "checked" : ""}> I understand: testnet only, a separate account with no real funds.</label>
+    </div>
+    <div class="${stepClass(mmOk(), acknowledged())}"><span class="sn">1</span><div class="sb"><h2>Connect MetaMask</h2>
       ${!hasMM ? `<p class="hint">MetaMask is not installed in this browser. Install it from <a href="https://metamask.io" target="_blank" rel="noopener">metamask.io</a>, add some Sepolia test ETH from a faucet, then reload this page.</p>`
+        : !acknowledged() ? `<p class="hint">Accept the notice above to continue.</p><button id="connect" disabled>Connect MetaMask</button>`
         : !S.mm.account ? `<button id="connect">Connect MetaMask</button>`
-        : `<p>Connected: ${addrLink(SEPOLIA, S.mm.account)}${S.mm.chainId === SEPOLIA ? " · Sepolia" : ""}</p>${S.mm.chainId !== SEPOLIA ? `<button id="switch">Switch MetaMask to Sepolia</button>` : ""}`}
+        : `<p>Connected: ${addrLink(SEPOLIA, S.mm.account)}${S.mm.chainId === SEPOLIA ? " · Sepolia" : ""} <button class="small ghost" id="disconnect">Disconnect</button></p>${S.mm.chainId !== SEPOLIA ? `<button id="switch">Switch MetaMask to Sepolia</button>` : ""}`}
     </div></div>
     <div class="${stepClass(missing === 0n, mmOk())}"><span class="sn">2</span><div class="sb"><h2>Fund the demo account</h2>
       <p>Demo account ${addrLink(SEPOLIA, demoAddr())} · balance <b>${S.demoBal === null ? "…" : ethText(S.demoBal)} ETH</b></p>
@@ -251,7 +292,7 @@ function render() {
         ${S.fundHash ? txLink(SEPOLIA, S.fundHash, "funding transaction") : ""}</div>
     </div></div>
     <div class="${stepClass(!!dep, canDeploy)}"><span class="sn">3</span><div class="sb"><h2>Deploy the contracts</h2>
-      ${dep ? `<p>Deployed: shielded pool ${addrLink(SEPOLIA, dep.ShieldedPool)} · token ${addrLink(SEPOLIA, dep.MockERC20)} · block ${dep.startBlock}</p>
+      ${dep ? `<p>Deployed: shielded pool ${addrLink(SEPOLIA, dep.ShieldedPool)} · token ${addrLink(SEPOLIA, dep.MockERC20)} · block ${esc(dep.startBlock)}</p>
           <p class="hint">Deploy once; every new demo session reuses these contracts. <button class="small ghost" id="startover" ${busy ? "disabled" : ""}>Start over with new contracts</button></p>`
         : `<p class="hint">13 contracts, including the three zero-knowledge proof verifiers from the EthSystems shielded pool. About 15 transactions; allow 4 to 6 minutes. Keep this tab open.</p>
           <button id="deploy" ${!canDeploy || busy ? "disabled" : ""}>${S.busy === "deploy" ? "Deploying…" : a.partialDeploy ? "Continue the deployment" : "Deploy the contracts"}</button>`}
@@ -269,9 +310,9 @@ function render() {
       <p class="hint">Collects what is left in the banks, the relayer and the demo account. This ends the current session.</p>
       <details id="adv" ${S.advancedOpen ? "open" : ""}><summary class="hint">Advanced</summary>
         <div class="row"><input id="rpc" class="hash" value="${esc(a.rpcUrl)}" aria-label="Sepolia RPC URL"><button class="small ghost" id="saverpc" ${busy ? "disabled" : ""}>Save RPC</button></div>
-        <p class="hint">The public endpoint works; a private one (Infura, Alchemy) is steadier. It is used by this page and by the wallets of this session. The audience link always uses the public endpoint, so a private URL is never shared.</p>
+        <p class="hint">The public endpoint works; a private one (Infura, Alchemy) is steadier. It is used by this page only: role links and the audience link always carry the public endpoint, so a private URL with an API key is never shared.</p>
         <div class="row"><button class="small ghost" id="showkey">${S.showKey ? "Hide" : "Show"} the demo account key (backup)</button></div>
-        ${S.showKey ? `<p class="mono keybox">${esc(a.adminKey)}</p><p class="hint">Import it into MetaMask to reach this account's ETH from anywhere. Testnet only.</p>` : ""}
+        ${S.showKey ? `<p class="mono keybox">${esc(a.adminKey)}</p><p class="hint">Sepolia demo key. Keep it only as a backup in case this browser's data is lost. Never import it into a wallet you use for real assets, and never send real funds to this address. The safe way to get the ETH back is the button above.</p>` : ""}
       </details>
     </div>` + footer();
   const focus = document.activeElement?.id;
@@ -279,7 +320,10 @@ function render() {
   if (focus && document.getElementById(focus)) document.getElementById(focus).focus({ preventScroll: true });
   const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = f; };
   on("connect", connect); on("switch", switchChain); on("fund", fund); on("deploy", deploy); on("session", newSession); on("sweep", sweep); on("startover", startOver); on("saverpc", saveRpc);
-  on("showkey", () => { S.showKey = !S.showKey; render(); });
+  on("showkey", () => { if (!S.showKey && !confirm("Show the demo account's private key? Make sure no one else can see this screen.")) return; S.showKey = !S.showKey; render(); });
+  on("disconnect", () => disconnectMetaMask(false).then(render));
+  $$("[data-reveal]").forEach((b) => (b.onclick = () => { if (confirm("Show this QR code? It contains testnet keys: keep it off shared screens.")) { S.revealed[b.dataset.reveal] = true; render(); } }));
+  $("#ack").onchange = (e) => { if (e.target.checked) store.set(ACK, "1"); else store.del(ACK); render(); };
   $("#fundamt").oninput = () => { S.fundEdited = true; };
   $("#adv").ontoggle = (e) => { S.advancedOpen = e.target.open; };
   $$("[data-copy]").forEach((b) => (b.onclick = () => copy(b.dataset.copy, b)));

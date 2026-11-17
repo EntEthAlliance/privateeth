@@ -30,5 +30,12 @@ function route() {
   if (prof) return showRole(prof);
   showLanding(error);
 }
-window.addEventListener("hashchange", route);
-route();
+// Never run inside another site's frame: a framing page could trick clicks on wallet buttons.
+let framed = true;
+try { framed = window.top !== window.self; } catch {}
+if (framed) {
+  $("#app").innerHTML = `<div class="err">This demo does not run inside another page. Open <a href="https://hub.entethalliance.org/privateeth/" target="_top" rel="noopener">hub.entethalliance.org/privateeth</a> directly.</div>`;
+} else {
+  window.addEventListener("hashchange", route);
+  route();
+}

@@ -25,6 +25,7 @@ export class ChainFeed {
       const to = this.from + this.chunk - 1n > latest ? latest : this.from + this.chunk - 1n;
       const logs = await this.pub.getLogs({ address: this.w.ShieldedPool, events: EV, fromBlock: this.from, toBlock: to });
       for (const l of logs) {
+        if (!/^0x[0-9a-fA-F]{64}$/.test(l.transactionHash || "")) continue; // never trust RPC data blindly
         const id = `${l.transactionHash}:${l.logIndex}`;
         if (!this.seen.has(id)) { this.seen.add(id); this.logs.push(l); }
       }

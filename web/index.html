@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Only this site's own scripts may run (WebAssembly is needed for the proofs). Network access
+     is limited to https (public or chosen RPC, proving parameters) and local test nodes. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' data: https: http://127.0.0.1:* http://localhost:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <title>PrivateEth · Private Payments Demo</title>
 <meta name="description" content="Two banks pay each other privately on Ethereum Sepolia with zero-knowledge proofs, and a regulator reads the payment with viewing keys.">
 <!-- Enables cross-origin isolation on static hosting so proofs can use several threads. Must load first. -->
