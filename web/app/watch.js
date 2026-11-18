@@ -25,8 +25,8 @@ export function showWatch(w) {
       <div><span class="lbl">In the pool this session</span><div class="big" id="wpool">…</div></div>
       <div><span class="lbl">Legend</span><div class="legend"><span><i class="lp"></i>public</span><span><i class="lh"></i>sealed</span><span><i class="la"></i>not on-chain</span></div></div></div>
     <div id="werr"></div>
-    <div class="watch-cards" id="wcards"><div class="empty">Reading the chain…</div></div>
-    <div id="wverify"></div>` + footer();
+    <div id="wverify"></div>
+    <div class="watch-cards" id="wcards"><div class="empty">Reading the chain…</div></div>` + footer();
   paint();
   if (!W.polling) {
     W.polling = true;
@@ -45,8 +45,7 @@ function paint() {
   if (!W) return;
   if ($("#wpool") && W.pool !== null) $("#wpool").textContent = `${n(W.pool)} tUSD`;
   if ($("#werr")) $("#werr").innerHTML = W.error ? `<div class="err">Chain connection problem: ${esc(W.error)} · retrying</div>` : "";
-  const bankB = Object.entries(W.w.names || {}).find(([, nm]) => nm === "Bank B")?.[0];
-  const v = verifyHtml({ chainId: W.w.chainId, feed: W.feed, bankB, token: W.w.MockERC20, pool: W.w.ShieldedPool });
+  const v = verifyHtml({ pub: W.pub, chainId: W.w.chainId, feed: W.feed, relayer: W.w.relayer, names: W.w.names, token: W.w.MockERC20, payLabel: "the one the presenter just made", onReady: paint });
   if ($("#wverify") && $("#wverify").innerHTML !== v) $("#wverify").innerHTML = v;
   const cards = W.feed.cards();
   const html = cards.length ? cards.map((c) => cardHtml(c, W.w.chainId, false)).join("") : `<div class="empty">No transactions yet. They appear here within seconds of landing on-chain.</div>`;

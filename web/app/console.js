@@ -213,7 +213,8 @@ function paintInspect() {
 let lastVerify = "";
 function paintVerify() {
   const box = $("#verify"); if (!box || !C) return;
-  const html = verifyHtml({ chainId: C.chainId, feed: C.feed, bankB: C.B.address, token: C.dep.MockERC20, pool: C.dep.ShieldedPool });
+  const names = Object.fromEntries(Object.entries(C.dep.directory).map(([nm, d]) => [d.address.toLowerCase(), nm]));
+  const html = verifyHtml({ pub: C.pub, chainId: C.chainId, feed: C.feed, relayer: C.dep.relayer, names, token: C.dep.MockERC20, onReady: paintVerify });
   if (html !== lastVerify || !box.innerHTML) { box.innerHTML = html; lastVerify = html; }
 }
 const paintAll = () => { paintTop(); paintStage(); paintInspect(); paintVerify(); };
