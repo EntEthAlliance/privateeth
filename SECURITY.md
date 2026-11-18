@@ -34,7 +34,9 @@ We ran an independent review with five auditors, each covering one area:
 - injection
 - risk to visitors
 
-Two more reviewers then tried to refute each finding. We also tested the whole flow in a browser with an injected wallet, on a fork of Sepolia: setup, the six demo steps, the audience view, a second session, and returning the ETH. A run on live Sepolia follows (see below).
+Two more reviewers then tried to refute each finding. We also tested the whole flow in a browser with an injected wallet, on a fork of Sepolia: setup, the six demo steps, the audience view, a second session, and returning the ETH.
+
+Then we ran it on the live site and live Sepolia with a real test wallet. The wallet saw only `eth_accounts`, `eth_chainId`, one `eth_sendTransaction` (0.03 test ETH to the demo account) and `wallet_revokePermissions`. The private payment from that run is [on Etherscan](https://sepolia.etherscan.io/tx/0x26cab0157a39853da0e94dc48bfa8a319d8e72a27ab85058bd4ba3adb8dfd5a5): no token transfer, no amount, sent by the relayer.
 
 **Conclusion:** we found no way for this site's code to move a visitor's real funds or read their MetaMask key. The remaining risks come from where the site is hosted (below).
 
@@ -45,14 +47,14 @@ Two more reviewers then tried to refute each finding. We also tested the whole f
 | **High.** A transaction hash returned by the RPC was put into an Etherscan link without escaping, so a malicious RPC could inject script | Links are built only from validated hashes and addresses. RPC logs that are not well-formed are dropped at the edge, and decrypted note fields are type-checked |
 | The funding request carried no chain ID, so a network switch at the last moment could move it to another chain | The request is bound to Sepolia (`chainId` in the request). The page re-checks the network just before asking |
 | The MetaMask connection stayed open after use | The site disconnects itself after funding and after returning ETH. There is also a Disconnect button |
-| Setup and audience links could point the page at any RPC, including plain http | Links are limited to Sepolia, https RPCs (http only for a local node), and audience links always use the public endpoint |
+| Setup and audience links could point the page at any RPC, including plain http | Links are limited to Sepolia (or a local test chain) and https RPCs (http only for a node on this computer). Audience links always use the public endpoint, except for a local test node |
 | A private RPC URL (with its API key) went into role links and QR codes | Links always carry the public endpoint; a private URL stays on the setup device |
 | The key backup suggested importing the demo key into MetaMask | That advice is removed. The key is shown only after a confirmation, labelled Sepolia-only |
 | QR codes with keys were always visible on the setup page | They are hidden until you click Reveal; only the audience QR code (no keys) shows openly |
 | Opening a link could silently replace roles from another demo | The page asks first |
 | No Content-Security-Policy | The page runs only its own scripts. WebAssembly is allowed for the proofs; network access is limited to https and local test nodes |
 | The page could run inside another site's frame | It refuses to run when framed |
-| Stored data was trusted | The saved setup record is shape-checked when loaded |
+| Stored data was trusted | The setup record's deployment and RPC URL, every role profile and the audience record are checked when loaded; anything malformed is dropped |
 | Deployment had three publish paths and a third-party action with a write token | One path (GitHub Pages' own deployment) from `main` only, with actions pinned to commit SHAs |
 
 ## What remains, and what we recommend
@@ -63,12 +65,12 @@ Two more reviewers then tried to refute each finding. We also tested the whole f
 
 The auto-disconnect limits the first risk to the minutes you are connected. The fix is a dedicated subdomain (for example `privateeth.entethalliance.org`), with no analytics on it.
 
-**2. Settings only an organisation admin can change:**
-- Turn on **Enforce HTTPS** for the organisation's Pages domain.
+**2. Settings only a repository admin can change:**
+- **Enforce HTTPS** in this repository's Settings → Pages. The hub's home page already redirects to `https://`, but `http://hub.entethalliance.org/privateeth/` still loads over plain http, and `entethalliance.github.io/privateeth/` redirects to it. Until this is on, share only the `https://` link.
 - Protect `main` (required review, no force-push), since every push to `main` publishes the site.
 
 **3. Smaller items, to do if the demo outlives this event:**
-- Self-host the fonts, removing the last third-party request that is not chain data.
+- Self-host the fonts (Google Fonts). With the proving parameters below, they are the only third-party requests that are not chain data.
 - Move from the nightly `@aztec/bb.js` to a stable release once one matches the verifier version.
 - Check the downloaded proving parameters against a pinned hash.
 
@@ -76,7 +78,7 @@ The auto-disconnect limits the first risk to the minutes you are connected. The 
 
 - Use a **separate MetaMask account, ideally in a separate browser profile, holding only Sepolia test ETH**. Never use an account that holds real assets.
 - Check the address bar: `https://hub.entethalliance.org/privateeth/`.
-- MetaMask should show **one** request: an ETH transfer on Sepolia to the demo account. Reject anything else.
+- MetaMask should show only: a request to connect (at the start, and again before returning the ETH), a switch to Sepolia if needed, and **one** ETH transfer on Sepolia to the demo account. Reject anything else, above all any signature request.
 - Keep role links and their QR codes off projected screens; project the console or the audience view.
 - After the demo: **Send all remaining ETH back to MetaMask**, check that MetaMask shows the site as disconnected, then clear the site's data in the browser (or close the private window).
 
