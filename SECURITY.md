@@ -34,7 +34,9 @@ We ran an independent review with five auditors, each covering one area:
 - injection
 - risk to visitors
 
-Two more reviewers then tried to refute each finding. We also tested the whole flow in a browser with an injected wallet, on a fork of Sepolia: setup, the six demo steps, the audience view, a second session, and returning the ETH. A run on live Sepolia follows (see below).
+Two more reviewers then tried to refute each finding. We also tested the whole flow in a browser with an injected wallet, on a fork of Sepolia: setup, the six demo steps, the audience view, a second session, and returning the ETH.
+
+Then we ran it on the live site and live Sepolia with a real test wallet. The wallet saw only `eth_accounts`, `eth_chainId`, one `eth_sendTransaction` (0.03 test ETH to the demo account) and `wallet_revokePermissions`. The private payment from that run is [on Etherscan](https://sepolia.etherscan.io/tx/0x26cab0157a39853da0e94dc48bfa8a319d8e72a27ab85058bd4ba3adb8dfd5a5): no token transfer, no amount, sent by the relayer.
 
 **Conclusion:** we found no way for this site's code to move a visitor's real funds or read their MetaMask key. The remaining risks come from where the site is hosted (below).
 
@@ -64,7 +66,7 @@ Two more reviewers then tried to refute each finding. We also tested the whole f
 The auto-disconnect limits the first risk to the minutes you are connected. The fix is a dedicated subdomain (for example `privateeth.entethalliance.org`), with no analytics on it.
 
 **2. Settings only an organisation admin can change:**
-- Turn on **Enforce HTTPS** for the organisation's Pages domain.
+- **Enforce HTTPS** in this repository's Pages settings, so `http://` links are redirected to `https://`.
 - Protect `main` (required review, no force-push), since every push to `main` publishes the site.
 
 **3. Smaller items, to do if the demo outlives this event:**
